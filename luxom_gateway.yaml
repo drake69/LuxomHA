@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Luigi Corsaro
 # =============================================================================
 #  Luxom DS65L  ->  TCP  ->  ESP32 (ESPHome)  ->  MQTT  ->  Home Assistant
 #  PRODUCTION GATEWAY (PHASE 2)

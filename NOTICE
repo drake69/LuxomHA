@@ -1,0 +1,12 @@
+LuxomHA — Luxom DS65L -> MQTT -> Home Assistant ESP32 gateway
+Copyright 2026 Luigi Corsaro
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Attributions:
+- Luxom protocol knowledge was derived from the openHAB binding
+  org.openhab.binding.luxom (EPL-2.0), used as an interface reference only
+  (original re-implementation, no source code copied), and from the ELAN g!
+  integration note. See documents/04_software_engineering/04_credits.md.
+- The C++/ESPHome implementation was written by Claude (Anthropic's AI assistant);
+  the engineering, functional, operational and design requirements are the owner's.

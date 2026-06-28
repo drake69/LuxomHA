@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Luigi Corsaro
 // Pure Luxom protocol/helper logic — NO ESPHome/Arduino dependencies.
 // Shared by the ESPHome lambdas (via `esphome: includes:`) AND by the host unit
 // tests (tests/test_luxom_proto.cpp), so the tests cover the real production code.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Luigi Corsaro
 // Host unit tests for the pure logic in ../luxom_proto.h (the same code the ESPHome
 // lambdas call). No framework: compile with a normal C++17 compiler and run.
 //   c++ -std=c++17 tests/test_luxom_proto.cpp -o /tmp/luxom_tests && /tmp/luxom_tests

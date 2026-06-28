@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Luigi Corsaro
 // BSD/lwip socket headers for the raw TCP client to the Luxom DS65L.
 // ESPHome on the arduino-esp32 core does NOT ship the Arduino WiFiClient, so we
 // talk to the DS65L through the lwip POSIX socket API (always available on ESP-IDF).

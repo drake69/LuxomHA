@@ -6,6 +6,12 @@
 <!-- Private repo: append ?token=<BADGE_TOKEN> to the codecov badge URL above
      (Codecov → repo → Settings → Badge) for it to render. -->
 
+> ⚠️ **Not yet tested on real hardware.** The firmware compiles and passes the
+> automated checks (host unit tests, ESPHome `config` + `compile`), but it has **not
+> yet been run against an actual Luxom DS65L and Home Assistant installation**.
+> Field testing is pending. **Volunteers with a Luxom setup are very welcome** to try
+> it and report results — open an issue or a PR.
+
 An ESP32 firmware (built with **ESPHome**) that bridges a **Luxom** home-automation
 bus to **Home Assistant** over **MQTT**, with automatic entity discovery.
 
@@ -117,3 +123,7 @@ in Home Assistant are defined **entirely by the MQTT discovery payload** we publ
 (`homeassistant/<component>/luxom_<id>/config`), so supporting a new type means:
 (1) handle its frames on the bus, and (2) publish the right discovery config. See the
 `entity_config` / `cover_config` helpers in `luxom_proto.h` and `CONTRIBUTING.md`.
+
+## License
+
+Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
