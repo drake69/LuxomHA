@@ -102,3 +102,12 @@ The software is provided "as is", without warranty of any kind.
 **Contributions welcome.** If you are a C++ / ESPHome expert and would like to review
 or improve the code, you are very welcome — please open an issue or a pull request.
 See `CONTRIBUTING.md` for the design rationale and how to build and test.
+
+**New / not-yet-integrated device types are especially welcome.** Today the gateway
+maps Luxom relays (HA `switch`), dimmers (HA `light`) and shutters (HA `cover`).
+Other Luxom device types (e.g. scenes/actions, sensors, other modules) are not
+integrated yet — adding them is a great contribution. The entity type and behaviour
+in Home Assistant are defined **entirely by the MQTT discovery payload** we publish
+(`homeassistant/<component>/luxom_<id>/config`), so supporting a new type means:
+(1) handle its frames on the bus, and (2) publish the right discovery config. See the
+`entity_config` / `cover_config` helpers in `luxom_proto.h` and `CONTRIBUTING.md`.

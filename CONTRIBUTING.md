@@ -8,6 +8,8 @@ protocol mapping are in `01_architecture.md` and `02_luxom_protocol.md`.
 > The C++ / ESPHome code was written by Claude (Anthropic's AI). **C++ / ESPHome
 > experts are very welcome** to review and improve it — open an issue or a PR. The
 > goal is a correct, maintainable gateway; better implementations are appreciated.
+> **Adding not-yet-integrated Luxom device types is especially welcome** (see
+> "Adding a new device type" below).
 
 ## Project layout
 
@@ -66,6 +68,22 @@ protocol mapping are in `01_architecture.md` and `02_luxom_protocol.md`.
 - **Socket/OS headers** → `luxom_net.h`.
 - **ESPHome wiring** (entities, intervals, MQTT, scripts) → the YAML, calling
   `luxom::` helpers rather than re-implementing logic inline.
+
+## Adding a new device type
+
+The HA entity type and behaviour are defined entirely by the MQTT **discovery
+payload** the gateway publishes (`homeassistant/<component>/luxom_<id>/config`). To
+support a not-yet-integrated Luxom device type:
+
+1. **Learn its frames** — what it sends/expects on the bus (see `02_luxom_protocol.md`;
+   capture real frames with `luxom_cover_discovery.yaml`).
+2. **Add a discovery builder** in `luxom_proto.h` (like `entity_config` /
+   `cover_config`): choose the HA `component` and build the JSON payload — and add
+   unit tests for it.
+3. **Wire it in the gateway YAML**: handle its inbound frames in `lux_on_frame`
+   (state → HA) and add the MQTT command subscription(s) (HA → bus), calling the new
+   helper.
+4. Run `./test.sh --compile` and open a PR.
 
 ## Build & test
 
