@@ -85,3 +85,16 @@ the protocol mapping, and limitations.
 | `../documents/04_software_engineering/03_design_decisions.md` | Design decisions & rationale |
 | `../documents/04_software_engineering/04_credits.md` | Attributions |
 | `../documents/04_software_engineering/references/` | Reference docs (ELAN note, ASCII-doc URLs, PlusConfig) |
+
+## Authorship & disclaimer
+
+The **C++ / ESPHome implementation** in this repository was written **entirely by
+Claude** (Anthropic's AI assistant).
+
+The **software-engineering requirements** — together with the **functional**,
+**operational** and **design** requirements — belong to and were defined by the
+**project owner**. In short: the owner specified *what* to build and the constraints
+to respect; the AI produced the *implementation*.
+
+The project owner is responsible for reviewing, testing, and operating this firmware.
+The software is provided "as is", without warranty of any kind.
