@@ -1,5 +1,11 @@
 # Luxom → MQTT → Home Assistant gateway (ESP32 / ESPHome)
 
+[![ESPHome CI](https://github.com/drake69/LuxomHA/actions/workflows/ci.yml/badge.svg)](https://github.com/drake69/LuxomHA/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/drake69/LuxomHA/branch/main/graph/badge.svg)](https://codecov.io/gh/drake69/LuxomHA)
+
+<!-- Private repo: append ?token=<BADGE_TOKEN> to the codecov badge URL above
+     (Codecov → repo → Settings → Badge) for it to render. -->
+
 An ESP32 firmware (built with **ESPHome**) that bridges a **Luxom** home-automation
 bus to **Home Assistant** over **MQTT**, with automatic entity discovery.
 

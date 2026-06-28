@@ -90,7 +90,12 @@ support a not-yet-integrated Luxom device type:
 ```bash
 ./test.sh             # host unit tests + esphome config validation (fast)
 ./test.sh --compile   # also full firmware compile (the decisive check)
+./test.sh --coverage  # also coverage of the pure logic (luxom_proto.h)
 ```
+
+Coverage is measured only for `luxom_proto.h` (the pure logic the lambdas delegate
+to); the firmware/lambda glue and on-device behaviour are not measurable. CI builds
+it with gcc + gcov and uploads to **Codecov** (needs a `CODECOV_TOKEN` repo secret).
 
 What each layer covers:
 - **host unit tests** (`tests/test_luxom_proto.cpp`) — behaviour of the pure logic.
