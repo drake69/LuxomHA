@@ -1,0 +1,8 @@
+[project]
+name = "luxom-ha-gateway"
+version = "0.1.0"
+description = "ESP32 (ESPHome) gateway: Luxom DS65L bus <-> MQTT <-> Home Assistant"
+requires-python = ">=3.11"
+dependencies = [
+    "esphome>=2026.4",
+]

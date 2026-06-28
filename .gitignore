@@ -1,0 +1,15 @@
+# ESPHome
+/.esphome/
+/.venv/
+
+# Secrets — never commit real credentials
+/secrets.yaml
+
+# Coding agent local files — never committed
+.coding_agent/
+
+# Local task backlog
+.sestante/
+
+# OS
+.DS_Store

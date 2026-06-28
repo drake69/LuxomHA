@@ -1,0 +1,56 @@
+name: ESPHome CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit tests (host)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build & run pure-logic tests
+        run: |
+          c++ -std=c++17 -Wall tests/test_luxom_proto.cpp -o /tmp/luxom_tests
+          /tmp/luxom_tests
+
+  validate:
+    name: Validate configs
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Provide CI secrets
+        run: cp tests/ci_secrets.yaml secrets.yaml
+      - name: esphome config
+        run: |
+          uv sync
+          uv run esphome config luxom_gateway.yaml
+          uv run esphome config luxom_cover_discovery.yaml
+
+  compile:
+    name: Compile firmware
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Cache PlatformIO / ESPHome build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio
+            ~/.cache/pip
+            .esphome
+          key: esphome-build-${{ hashFiles('pyproject.toml', 'uv.lock') }}
+          restore-keys: esphome-build-
+      - name: Provide CI secrets
+        run: cp tests/ci_secrets.yaml secrets.yaml
+      - name: esphome compile
+        run: |
+          uv sync
+          uv run esphome compile luxom_gateway.yaml
+          uv run esphome compile luxom_cover_discovery.yaml

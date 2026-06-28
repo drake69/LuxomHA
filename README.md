@@ -1,0 +1,87 @@
+# Luxom → MQTT → Home Assistant gateway (ESP32 / ESPHome)
+
+An ESP32 firmware (built with **ESPHome**) that bridges a **Luxom** home-automation
+bus to **Home Assistant** over **MQTT**, with automatic entity discovery.
+
+The ESP32 acts as a TCP client to the Luxom **DS65L IP interface** (ASCII protocol,
+`;`-terminated frames) and translates the bus traffic into MQTT, publishing Home
+Assistant MQTT-discovery configs so entities appear in HA on their own.
+
+```
+Luxom L-bus ── DS65L (IP) ──TCP:2300── ESP32 (ESPHome) ──MQTT── Broker ── Home Assistant
+```
+
+## What you get in Home Assistant
+
+| Luxom device | HA entity | How it is discovered |
+|---|---|---|
+| Relay / outlet | `switch` | automatic (passive sniffing or *scan bus*) |
+| Dimmer | `light` (brightness 0–100) | automatic |
+| Shutter | `cover` (open/close/stop) | static, from `secrets.yaml` (see PHASE 1) |
+
+You only ever edit **`secrets.yaml`**. Everything else is handled by the firmware.
+
+## Requirements
+
+- An ESP32 board (e.g. `esp32dev`). For a wired uplink, an Ethernet ESP32 works too.
+- A reachable Luxom **DS65L** IP interface (TCP — port **2300** or **2301**, see
+  `secrets.yaml`; the ELAN note documents 2301 for the DS65L, openHAB uses 2300).
+- An **MQTT broker** that Home Assistant uses (MQTT integration enabled, discovery on).
+- [`uv`](https://docs.astral.sh/uv/) to run ESPHome.
+
+> The DS65L typically accepts **a single TCP client**. While this gateway is
+> connected, do not run another client (openHAB/Homey) against the same interface.
+
+## Quick start
+
+```bash
+cd sw_artifacts
+cp secrets.yaml.example secrets.yaml      # then fill it in (see comments inside)
+
+# First flash over USB:
+./flash_ota.sh gateway /dev/ttyUSB0
+# Later, over the air:
+./flash_ota.sh gateway 192.168.0.60
+```
+
+Then in Home Assistant: turn your Luxom lights/outlets on/off from the wall — they
+appear automatically. Or press the **"Luxom: scan bus"** button (exposed by the
+gateway) to actively probe the address range from `secrets.yaml`.
+
+## Shutters (two phases)
+
+Luxom has no bus enumeration and shutters have no dedicated opcode (they are two
+relays, up/down). So shutters are set up in two phases:
+
+1. **Discovery** — flash `luxom_cover_discovery.yaml`, press **UP** then **DOWN**
+   on each shutter, read the two addresses from the logs (or the *recent addresses*
+   entity in HA).
+2. **Production** — put them in `secrets.yaml` (`luxom_covers`) and flash
+   `luxom_gateway.yaml`. They show up as real HA `cover` entities.
+
+```yaml
+# secrets.yaml
+luxom_covers: '"Kitchen|2,03|2,04 ; Bedroom|2,05|2,06"'
+```
+
+See **`../documents/04_software_engineering/01_architecture.md`** for architecture,
+the protocol mapping, and limitations.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `luxom_gateway.yaml` | **The artifact** — production ESPHome gateway |
+| `luxom_cover_discovery.yaml` | PHASE 1 diagnostic tool to find shutter addresses |
+| `luxom_proto.h` | Pure protocol/helper logic (host-unit-tested) |
+| `luxom_net.h` | lwip socket headers for the TCP link |
+| `secrets.yaml.example` | Template for your local `secrets.yaml` |
+| `flash_ota.sh` | Build/flash helper (USB or OTA) |
+| `test.sh` / `tests/` | Automated checks (unit tests + config/compile) |
+| `CONTRIBUTING.md` | Design choices & how to develop |
+| `../documents/06_knowledge_base/01_user_guide.md` | **User guide** (Home Assistant, no dev skills) |
+| `../documents/04_software_engineering/01_architecture.md` | Architecture, protocol mapping, limitations |
+| `../documents/04_software_engineering/02_luxom_protocol.md` | Luxom protocol knowledge base |
+| `../documents/04_software_engineering/03_design_decisions.md` | Design decisions & rationale |
+| `../documents/04_software_engineering/04_credits.md` | Attributions |
+| `../documents/04_software_engineering/references/` | Reference docs (ELAN note, ASCII-doc URLs, PlusConfig) |

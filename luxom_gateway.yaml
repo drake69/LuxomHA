@@ -1,0 +1,548 @@
+# =============================================================================
+#  Luxom DS65L  ->  TCP  ->  ESP32 (ESPHome)  ->  MQTT  ->  Home Assistant
+#  PRODUCTION GATEWAY (PHASE 2)
+# =============================================================================
+#  Bidirectional bridge between the Luxom bus (DS65L IP interface, ASCII frames
+#  terminated by ';') and Home Assistant over MQTT, with auto-discovery.
+#
+#  LIGHTS / OUTLETS / DIMMERS  -> discovered automatically:
+#   * Passive sniffing always on: press a physical switch and the entity shows
+#     up in HA by itself.
+#   * "Luxom: scan bus" button -> active *P probing over the range in secrets.
+#
+#  SHUTTERS (covers) -> static, defined in secrets.yaml (luxom_covers), obtained
+#   first with luxom_cover_discovery.yaml (PHASE 1). The up/down addresses of a
+#   cover are NOT re-created as duplicate switches.
+#
+#  >>> YOU ONLY EDIT  secrets.yaml  <<<  (do not touch this file)
+#  Entities arrive in HA via MQTT discovery (retained): rename them there.
+#
+#  Protocol reference: see ../documents/04_software_engineering/02_luxom_protocol.md
+# =============================================================================
+
+esphome:
+  name: luxom-gateway
+  friendly_name: "Luxom Gateway"
+  includes:
+    - luxom_net.h     # lwip socket headers for the TCP link to the DS65L
+    - luxom_proto.h   # pure protocol/helper logic (also covered by host unit tests)
+  on_boot:
+    # load the shutters defined in secrets.yaml
+    - priority: 600
+      then:
+        - script.execute: lux_load_covers
+    # register the MQTT command subscriptions (once; ESPHome re-subscribes
+    # automatically on every reconnect)
+    - priority: -100
+      then:
+        - lambda: |-
+            // ---- ON/OFF command (switch and dimmer): luxom/<id>/set ----
+            id(mqtt_client).subscribe("luxom/+/set", [](const std::string &topic, const std::string &payload) {
+              std::string oid = luxom::topic_oid(topic);
+              if (oid.empty()) return;
+              std::string addr = luxom::desanitize(oid);
+              ESP_LOGI("luxom", "MQTT< %s = %s", topic.c_str(), payload.c_str());
+              bool on = (payload == "ON" || payload == "on" || payload == "1");
+              std::string kind = "s";
+              for (auto &e : id(lux_known)) {
+                if (e.rfind(addr + "|", 0) == 0) { kind = e.substr(e.rfind('|') + 1); break; }
+              }
+              std::string base = "luxom/" + oid;
+              if (kind == "d") {
+                int pct = on ? 100 : 0;
+                id(lux_send)->execute(pct == 0 ? std::string("*C,0,") + addr : std::string("*S,0,") + addr);
+                if (pct > 0) {
+                  id(lux_send)->execute(std::string("*A,0,") + addr);
+                  id(lux_send)->execute(std::string("*Z,0") + luxom::pct_to_hex(pct));
+                }
+                id(mqtt_client).publish(base + "/bri", std::string(on ? "100" : "0"), 0, true);
+                id(mqtt_client).publish(base + "/state", std::string(on ? "ON" : "OFF"), 0, true);
+              } else {
+                id(lux_send)->execute((on ? std::string("*S,0,") : std::string("*C,0,")) + addr);
+                id(lux_send)->execute(std::string("*P,0,") + addr);  // ping -> real state
+                id(mqtt_client).publish(base + "/state", std::string(on ? "ON" : "OFF"), 0, true);
+              }
+            });
+            // ---- brightness command (dimmer): luxom/<id>/bri/set ----
+            id(mqtt_client).subscribe("luxom/+/bri/set", [](const std::string &topic, const std::string &payload) {
+              std::string oid = luxom::topic_oid(topic);
+              if (oid.empty()) return;
+              std::string addr = luxom::desanitize(oid);
+              ESP_LOGI("luxom", "MQTT< %s = %s", topic.c_str(), payload.c_str());
+              int pct = atoi(payload.c_str()); if (pct < 0) pct = 0; if (pct > 100) pct = 100;
+              id(lux_send)->execute(pct == 0 ? std::string("*C,0,") + addr : std::string("*S,0,") + addr);
+              if (pct > 0) {
+                id(lux_send)->execute(std::string("*A,0,") + addr);
+                id(lux_send)->execute(std::string("*Z,0") + luxom::pct_to_hex(pct));
+              }
+              std::string base = "luxom/" + oid;
+              id(mqtt_client).publish(base + "/bri", std::to_string(pct), 0, true);
+              id(mqtt_client).publish(base + "/state", std::string(pct ? "ON" : "OFF"), 0, true);
+            });
+            // ---- cover command: luxom/cover/<up__down>/set ----
+            id(mqtt_client).subscribe("luxom/cover/+/set", [](const std::string &topic, const std::string &payload) {
+              ESP_LOGI("luxom", "MQTT< %s = %s", topic.c_str(), payload.c_str());
+              luxom::UpDown ud = luxom::cover_parse_cid(luxom::cover_cid_from_topic(topic));
+              if (!ud.ok) return;
+              std::string up = ud.up, down = ud.down;
+              if (payload == "OPEN") {
+                id(lux_send)->execute(std::string("*C,0,") + down);
+                id(lux_send)->execute(std::string("*S,0,") + up);
+              } else if (payload == "CLOSE") {
+                id(lux_send)->execute(std::string("*C,0,") + up);
+                id(lux_send)->execute(std::string("*S,0,") + down);
+              } else if (payload == "STOP") {
+                id(lux_send)->execute(std::string("*C,0,") + up);
+                id(lux_send)->execute(std::string("*C,0,") + down);
+              }
+            });
+            ESP_LOGI("luxom", "subscribed to MQTT command topics");
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino   # native WiFiClient for the TCP socket to the DS65L
+
+ota:
+  - platform: esphome
+    password: !secret ota_password   # wireless updates are password-protected
+
+wifi:
+  id: wifi_comp
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  reboot_timeout: 0s
+  fast_connect: true
+  # By default the gateway uses DHCP and is reached by name (luxom-gateway.local)
+  # for wireless OTA updates. For a guaranteed-stable address either set a DHCP
+  # reservation on your router, OR give it a fixed IP: fill esp_static_ip/
+  # esp_gateway/esp_subnet in secrets.yaml and uncomment the block below.
+  # manual_ip:
+  #   static_ip: !secret esp_static_ip
+  #   gateway: !secret esp_gateway
+  #   subnet: !secret esp_subnet
+
+# Verbose trace of every interaction, visible via `uv run esphome logs luxom_gateway.yaml`.
+# With MQTT (no native API) ESPHome streams the log over the broker, so `esphome logs`
+# works over the network (and over USB). All interactions are logged at INFO under the
+# "luxom" tag:  BUS> / BUS<  = frame sent/received on the Luxom socket;
+# MQTT< = command from HA;  MQTT> = state/brightness published to HA.
+# Set level: DEBUG only if you also want ESPHome's internal component chatter.
+logger:
+  level: INFO
+
+mqtt:
+  id: mqtt_client
+  broker: !secret mqtt_host
+  port: 1883
+  username: !secret mqtt_user
+  password: !secret mqtt_pass
+  birth_message:
+    topic: luxom/gateway/status
+    payload: online
+  will_message:
+    topic: luxom/gateway/status
+    payload: offline
+  on_connect:
+    - script.execute: lux_republish   # re-publish configs if the broker lost them
+
+########## globals ##########
+globals:
+  # --- parameters from secrets.yaml (string values need inner quotes:
+  #     see secrets.yaml.example) ---
+  - id: luxom_host
+    type: std::string
+    restore_value: no
+    initial_value: !secret luxom_host
+  - id: luxom_port
+    type: int
+    restore_value: no
+    initial_value: !secret luxom_port
+  - id: luxom_probe_modules
+    type: std::string
+    restore_value: no
+    initial_value: !secret luxom_probe_modules
+  - id: luxom_probe_out_max
+    type: int
+    restore_value: no
+    initial_value: !secret luxom_probe_out_max
+  - id: luxom_covers_cfg          # shutters: "Name|up|down ; Name|up|down"
+    type: std::string
+    restore_value: no
+    initial_value: !secret luxom_covers
+
+  # --- socket and runtime state ---
+  - id: lux_fd                   # TCP socket file descriptor (-1 = closed)
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: lux_connecting           # non-blocking connect in progress
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: lux_rx
+    type: std::string
+    restore_value: no
+  - id: lux_pending_dim          # @1*A address awaiting the following @1*Z (dimmer level)
+    type: std::string
+    restore_value: no
+  - id: lux_known                # seen devices: "M,OO|s" or "M,OO|d"
+    type: std::vector<std::string>
+    restore_value: no
+  - id: lux_covers               # loaded shutters: "name^up^down"
+    type: std::vector<std::string>
+    restore_value: no
+  - id: lux_cover_addrs          # addresses that belong to a cover (no duplicate switches)
+    type: std::vector<std::string>
+    restore_value: no
+  - id: lux_bus_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: lux_handshake_fallback
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: lux_conn_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  # --- active discovery state (*P probing) ---
+  - id: disc_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: disc_mods
+    type: std::vector<std::string>
+    restore_value: no
+  - id: disc_out_max
+    type: int
+    restore_value: no
+    initial_value: '16'
+  - id: disc_mod_idx
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: disc_out_idx
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+########## diagnostics / control panel (via MQTT) ##########
+text_sensor:
+  - platform: version
+    name: "ESPHome version"
+    hide_timestamp: true
+
+binary_sensor:
+  - platform: template
+    name: "Luxom bus connected"
+    id: lux_bus_connected
+
+sensor:
+  - platform: template
+    name: "Luxom discovered devices"
+    id: lux_dev_count
+    accuracy_decimals: 0
+  - platform: template
+    name: "Luxom shutters"
+    id: lux_cover_count
+    accuracy_decimals: 0
+  - platform: wifi_signal
+    name: "WiFi signal"
+    update_interval: 60s
+
+button:
+  - platform: template
+    name: "Luxom: scan bus"
+    icon: mdi:radar
+    on_press:
+      - script.execute: lux_discover_start
+
+  - platform: restart
+    name: "Luxom: restart gateway"
+
+########## scripts ##########
+script:
+  # send a Luxom frame on the socket (appends the ';' terminator)
+  - id: lux_send
+    parameters:
+      frame: string
+    then:
+      - lambda: |-
+          if (id(lux_fd) < 0 || id(lux_connecting)) return;
+          std::string out = frame; out += ';';
+          int n = send(id(lux_fd), out.c_str(), out.size(), 0);
+          if (n < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
+            close(id(lux_fd)); id(lux_fd) = -1;
+            ESP_LOGW("luxom", "send failed (errno %d), socket closed", errno);
+            return;
+          }
+          ESP_LOGI("luxom", "BUS> %s;", frame.c_str());
+
+  # load shutters from secrets (luxom_covers): "Name|up|down ; Name|up|down"
+  - id: lux_load_covers
+    then:
+      - lambda: |-
+          id(lux_covers).clear();
+          id(lux_cover_addrs).clear();
+          for (auto &c : luxom::parse_covers(id(luxom_covers_cfg))) {
+            id(lux_covers).push_back(c.name + "^" + c.up + "^" + c.down);
+            id(lux_cover_addrs).push_back(c.up);
+            if (c.down != c.up) id(lux_cover_addrs).push_back(c.down);
+            ESP_LOGI("luxom", "shutter loaded: '%s' up=%s down=%s", c.name.c_str(), c.up.c_str(), c.down.c_str());
+          }
+          ESP_LOGI("luxom", "%d shutters loaded from secrets", (int) id(lux_covers).size());
+
+  # publish HA MQTT discovery for a switch ('s') or a dimmer/light ('d')
+  - id: lux_emit_config
+    parameters:
+      addr: string
+      kind: string
+    then:
+      - lambda: |-
+          bool dimmer = (kind == "d");
+          id(mqtt_client).publish(luxom::entity_config_topic(addr, dimmer),
+                                  luxom::entity_config(addr, dimmer), 0, true);
+          ESP_LOGI("luxom", "config %s (%s)", addr.c_str(), dimmer ? "light" : "switch");
+
+  # publish HA MQTT discovery for a cover (shutter). cid = "<up>__<down>"
+  - id: lux_emit_cover
+    parameters:
+      name: string
+      up: string
+      down: string
+    then:
+      - lambda: |-
+          id(mqtt_client).publish(luxom::cover_config_topic(up, down),
+                                  luxom::cover_config(name, up, down), 0, true);
+          ESP_LOGI("luxom", "cover '%s' up=%s down=%s", name.c_str(), up.c_str(), down.c_str());
+
+  # re-publish all known configs (on MQTT reconnect)
+  - id: lux_republish
+    then:
+      - lambda: |-
+          for (auto &e : id(lux_known)) {
+            size_t bar = e.rfind('|');
+            if (bar == std::string::npos) continue;
+            id(lux_emit_config)->execute(e.substr(0, bar), e.substr(bar + 1));
+          }
+          for (auto &e : id(lux_covers)) {
+            size_t p1 = e.find('^'); if (p1 == std::string::npos) continue;
+            size_t p2 = e.find('^', p1 + 1); if (p2 == std::string::npos) continue;
+            id(lux_emit_cover)->execute(e.substr(0, p1), e.substr(p1 + 1, p2 - p1 - 1), e.substr(p2 + 1));
+          }
+          ESP_LOGI("luxom", "re-published %d entities + %d shutters",
+                   (int) id(lux_known).size(), (int) id(lux_covers).size());
+
+  # start an active *P scan over the address range from secrets.yaml
+  - id: lux_discover_start
+    then:
+      - lambda: |-
+          id(disc_mods).clear();
+          std::string s = id(luxom_probe_modules);
+          std::string cur;
+          for (char ch : s) {
+            if (ch == ' ') continue;
+            if (ch == ',') { if (!cur.empty()) { id(disc_mods).push_back(cur); cur.clear(); } }
+            else cur += ch;
+          }
+          if (!cur.empty()) id(disc_mods).push_back(cur);
+          id(disc_out_max) = id(luxom_probe_out_max);
+          id(disc_mod_idx) = 0;
+          id(disc_out_idx) = 0;
+          id(disc_active) = true;
+          ESP_LOGI("luxom", "scan started: %d modules x %d outputs",
+                   (int) id(disc_mods).size(), id(disc_out_max));
+
+  # handle one inbound Luxom frame (already stripped of the ';' terminator)
+  - id: lux_on_frame
+    parameters:
+      frame: string
+    then:
+      - lambda: |-
+          std::string f = frame;
+          if (f.empty()) return;
+          ESP_LOGI("luxom", "BUS< %s", f.c_str());
+
+          if (f == "@1*PW-") { id(lux_send)->execute("*?"); ESP_LOGI("luxom", "handshake @1*PW- -> *?"); return; }
+          if (f.rfind("*!", 0) == 0) {
+            id(lux_bus_ready) = true;
+            ESP_LOGI("luxom", "module info -> bus ready");
+            id(lux_republish)->execute();
+            return;
+          }
+          if (f == "*U" || f == "@1*V") return;  // heartbeat / ack
+
+          luxom::Frame fr = luxom::parse_frame(f);
+
+          if (fr.op == "@1*Z") {  // dimmer level byte for the previous @1*A
+            if (!id(lux_pending_dim).empty()) {
+              int pct = luxom::hex_to_pct(f.substr(f.find(',') + 1));
+              std::string addr = id(lux_pending_dim);
+              bool known = false;
+              for (auto &e : id(lux_known)) if (e.rfind(addr + "|", 0) == 0) { known = true; break; }
+              if (!known) { id(lux_known).push_back(addr + "|d"); id(lux_emit_config)->execute(addr, "d"); }
+              std::string oid = luxom::sanitize(addr);
+              id(mqtt_client).publish(std::string("luxom/") + oid + "/bri", std::to_string(pct), 0, true);
+              id(mqtt_client).publish(std::string("luxom/") + oid + "/state", std::string(pct ? "ON" : "OFF"), 0, true);
+              ESP_LOGI("luxom", "MQTT> luxom/%s state=%s bri=%d", oid.c_str(), pct ? "ON" : "OFF", pct);
+              id(lux_pending_dim) = "";
+            }
+            return;
+          }
+
+          if (!fr.has_addr) return;
+          std::string addr = fr.addr;  // "M,OO"
+
+          // address belonging to a shutter -> handled as a cover, no switch
+          for (auto &ca : id(lux_cover_addrs)) if (ca == addr) return;
+
+          if (fr.op == "@1*A") { id(lux_pending_dim) = addr; return; }  // dimmer preamble
+          if (fr.op == "@1*S" || fr.op == "@1*C") {
+            bool known = false;
+            for (auto &e : id(lux_known)) if (e.rfind(addr + "|", 0) == 0) { known = true; break; }
+            if (!known) { id(lux_known).push_back(addr + "|s"); id(lux_emit_config)->execute(addr, "s"); }
+            std::string oid = luxom::sanitize(addr);
+            id(mqtt_client).publish(std::string("luxom/") + oid + "/state",
+                                    std::string(fr.op == "@1*S" ? "ON" : "OFF"), 0, true);
+            ESP_LOGI("luxom", "MQTT> luxom/%s state=%s", oid.c_str(), fr.op == "@1*S" ? "ON" : "OFF");
+          }
+
+########## intervals ##########
+interval:
+  # TCP connection management to the DS65L + handshake fallback
+  - interval: 1s
+    then:
+      - lambda: |-
+          if (!id(wifi_comp).is_connected()) return;
+
+          // no socket -> start a non-blocking connect
+          if (id(lux_fd) < 0) {
+            id(lux_bus_ready) = false;
+            id(disc_active) = false;
+            id(lux_rx) = "";
+            id(lux_pending_dim) = "";
+            id(lux_handshake_fallback) = false;
+            id(lux_bus_connected).publish_state(false);
+            int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+            if (fd < 0) { ESP_LOGW("luxom", "socket() failed (errno %d)", errno); return; }
+            int fl = fcntl(fd, F_GETFL, 0); fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+            struct sockaddr_in sa; memset(&sa, 0, sizeof(sa));
+            sa.sin_family = AF_INET;
+            sa.sin_port = htons((uint16_t) id(luxom_port));
+            if (inet_pton(AF_INET, id(luxom_host).c_str(), &sa.sin_addr) != 1) {
+              ESP_LOGW("luxom", "bad luxom_host '%s' (must be an IP)", id(luxom_host).c_str());
+              close(fd); return;
+            }
+            int r = connect(fd, (struct sockaddr*) &sa, sizeof(sa));
+            id(lux_conn_ms) = millis();
+            if (r == 0) {
+              id(lux_fd) = fd; id(lux_connecting) = false;
+              ESP_LOGI("luxom", "TCP connected to %s:%d", id(luxom_host).c_str(), id(luxom_port));
+            } else if (errno == EINPROGRESS) {
+              id(lux_fd) = fd; id(lux_connecting) = true;
+              ESP_LOGI("luxom", "TCP connecting to %s:%d ...", id(luxom_host).c_str(), id(luxom_port));
+            } else {
+              close(fd);
+              ESP_LOGW("luxom", "TCP connect to %s:%d failed (errno %d)", id(luxom_host).c_str(), id(luxom_port), errno);
+            }
+            return;
+          }
+
+          // connect in progress -> check completion
+          if (id(lux_connecting)) {
+            fd_set wset; FD_ZERO(&wset); FD_SET(id(lux_fd), &wset);
+            struct timeval tv; tv.tv_sec = 0; tv.tv_usec = 0;
+            int s = select(id(lux_fd) + 1, NULL, &wset, NULL, &tv);
+            if (s > 0 && FD_ISSET(id(lux_fd), &wset)) {
+              int err = 0; socklen_t l = sizeof(err);
+              getsockopt(id(lux_fd), SOL_SOCKET, SO_ERROR, &err, &l);
+              if (err == 0) {
+                id(lux_connecting) = false; id(lux_conn_ms) = millis();
+                ESP_LOGI("luxom", "TCP connected to %s:%d", id(luxom_host).c_str(), id(luxom_port));
+              } else {
+                close(id(lux_fd)); id(lux_fd) = -1;
+                ESP_LOGW("luxom", "TCP connect error (errno %d)", err);
+              }
+            } else if (millis() - id(lux_conn_ms) > 5000) {
+              close(id(lux_fd)); id(lux_fd) = -1;
+              ESP_LOGW("luxom", "TCP connect timeout");
+            }
+            return;
+          }
+
+          // connected: if the interface does not send @1*PW- within 3s, prompt with *?
+          if (!id(lux_bus_ready) && !id(lux_handshake_fallback) && (millis() - id(lux_conn_ms) > 3000)) {
+            id(lux_send)->execute("*?");
+            id(lux_handshake_fallback) = true;
+            ESP_LOGI("luxom", "handshake fallback: sent *?");
+          }
+
+  # socket read pump: accumulate chars and split on ';'
+  # (handles frames concatenated within the same TCP segment)
+  - interval: 100ms
+    then:
+      - lambda: |-
+          if (id(lux_fd) < 0 || id(lux_connecting)) return;
+          char buf[256];
+          while (true) {
+            int n = recv(id(lux_fd), buf, sizeof(buf), 0);
+            if (n > 0) {
+              for (int i = 0; i < n; i++) {
+                char ch = buf[i];
+                if (ch == ';') { id(lux_on_frame)->execute(id(lux_rx)); id(lux_rx) = ""; }
+                else if (ch != '\r' && ch != '\n') id(lux_rx) += ch;
+              }
+              if (n < (int) sizeof(buf)) break;   // buffer drained
+            } else if (n == 0) {
+              close(id(lux_fd)); id(lux_fd) = -1;  // peer closed
+              ESP_LOGW("luxom", "bus socket closed by peer");
+              break;
+            } else {
+              if (errno == EWOULDBLOCK || errno == EAGAIN) break;
+              close(id(lux_fd)); id(lux_fd) = -1;
+              ESP_LOGW("luxom", "recv error (errno %d), socket closed", errno);
+              break;
+            }
+          }
+
+  # active *P scan: send a few probes per tick to avoid flooding the bus
+  - interval: 250ms
+    then:
+      - lambda: |-
+          if (!id(disc_active)) return;
+          if (id(lux_fd) < 0 || id(lux_connecting)) { id(disc_active) = false; return; }
+          int sent = 0;
+          while (id(disc_active) && sent < 4) {
+            if (id(disc_mod_idx) >= (int) id(disc_mods).size()) {
+              id(disc_active) = false;
+              ESP_LOGI("luxom", "scan complete");
+              break;
+            }
+            std::string mod = id(disc_mods)[id(disc_mod_idx)];
+            char ob[5]; snprintf(ob, sizeof(ob), "%02d", id(disc_out_idx) + 1);
+            id(lux_send)->execute(std::string("*P,0,") + mod + "," + ob);
+            sent++;
+            id(disc_out_idx)++;
+            if (id(disc_out_idx) >= id(disc_out_max)) { id(disc_out_idx) = 0; id(disc_mod_idx)++; }
+          }
+
+  # periodic state refresh for the known devices
+  - interval: 300s
+    then:
+      - lambda: |-
+          if (!id(lux_bus_ready)) return;
+          for (auto &e : id(lux_known)) {
+            size_t bar = e.rfind('|'); if (bar == std::string::npos) continue;
+            id(lux_send)->execute(std::string("*P,0,") + e.substr(0, bar));
+          }
+
+  # diagnostics
+  - interval: 5s
+    then:
+      - lambda: |-
+          id(lux_bus_connected).publish_state(id(lux_fd) >= 0 && !id(lux_connecting));
+          id(lux_dev_count).publish_state(id(lux_known).size());
+          id(lux_cover_count).publish_state(id(lux_covers).size());
