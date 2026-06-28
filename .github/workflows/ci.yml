@@ -20,13 +20,16 @@ jobs:
     name: Coverage (pure logic)
     runs-on: ubuntu-latest
     needs: unit
+    continue-on-error: true   # informational: never red the build on coverage/upload
     steps:
       - uses: actions/checkout@v4
       - name: Build with coverage & run
         run: |
-          g++ -std=c++17 -O0 --coverage tests/test_luxom_proto.cpp -o luxom_cov
+          # two-step build so the .gcno/.gcda land next to a predictable object name
+          g++ -std=c++17 -O0 --coverage -c tests/test_luxom_proto.cpp -o test_luxom_proto.o
+          g++ --coverage test_luxom_proto.o -o luxom_cov
           ./luxom_cov
-          gcov -r tests/test_luxom_proto.cpp
+          gcov test_luxom_proto.o   # produces luxom_proto.h.gcov etc.
       - name: Upload to Codecov
         uses: codecov/codecov-action@v4
         with:

@@ -49,13 +49,17 @@ fi
 if [ "$WANT_COV" = 1 ]; then
   echo "== coverage (host, luxom_proto.h) =="
   CXX="${CXX:-c++}"
-  rm -f *.gcda *.gcno *.gcov 2>/dev/null || true
-  $CXX -std=c++17 -O0 --coverage tests/test_luxom_proto.cpp -o /tmp/luxom_cov && /tmp/luxom_cov || rc=1
+  rm -f ./*.gcov 2>/dev/null || true
+  # two-step build so the object (and its .gcno/.gcda) has a predictable name
+  $CXX -std=c++17 -O0 --coverage -c tests/test_luxom_proto.cpp -o /tmp/test_luxom_proto.o \
+    && $CXX --coverage /tmp/test_luxom_proto.o -o /tmp/luxom_cov \
+    && /tmp/luxom_cov || rc=1
   if command -v gcov >/dev/null 2>&1; then
-    gcov -r tests/test_luxom_proto.cpp >/dev/null 2>&1 || true
-    [ -f luxom_proto.h.gcov ] && echo "  report: luxom_proto.h.gcov (also uploaded to Codecov in CI)"
+    gcov /tmp/test_luxom_proto.o >/dev/null 2>&1 || true
+    [ -f luxom_proto.h.gcov ] && echo "  report: luxom_proto.h.gcov (Codecov in CI)" \
+                              || echo "  (gcov ran; see ./*.gcov)"
   else
-    echo "  (gcov not found; raw .gcda/.gcno generated)"
+    echo "  (gcov not found; raw .gcda/.gcno only)"
   fi
 fi
 

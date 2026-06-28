@@ -11,11 +11,13 @@
 # Local task backlog
 .sestante/
 
-# Coverage artifacts
+# Coverage / build artifacts
 *.gcda
 *.gcno
 *.gcov
+*.o
 coverage.info
+luxom_cov
 
 # OS
 .DS_Store
