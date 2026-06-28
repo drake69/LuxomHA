@@ -98,3 +98,7 @@ to respect; the AI produced the *implementation*.
 
 The project owner is responsible for reviewing, testing, and operating this firmware.
 The software is provided "as is", without warranty of any kind.
+
+**Contributions welcome.** If you are a C++ / ESPHome expert and would like to review
+or improve the code, you are very welcome — please open an issue or a pull request.
+See `CONTRIBUTING.md` for the design rationale and how to build and test.

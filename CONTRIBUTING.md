@@ -5,6 +5,10 @@ how to work on the code. Full rationale lives in
 `../documents/04_software_engineering/03_design_decisions.md`; the architecture and
 protocol mapping are in `01_architecture.md` and `02_luxom_protocol.md`.
 
+> The C++ / ESPHome code was written by Claude (Anthropic's AI). **C++ / ESPHome
+> experts are very welcome** to review and improve it — open an issue or a PR. The
+> goal is a correct, maintainable gateway; better implementations are appreciated.
+
 ## Project layout
 
 | File | Role |
