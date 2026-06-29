@@ -65,6 +65,7 @@ globals:
     type: int
     restore_value: no
     initial_value: !secret luxom_port
+  # --- socket and runtime state ---
   - id: lux_fd                   # TCP socket file descriptor (-1 = closed)
     type: int
     restore_value: no
@@ -111,6 +112,7 @@ button:
     icon: mdi:broom
     on_press:
       - lambda: |-
+          // reset the rolling list of recently activated addresses
           id(lux_recent) = "";
           id(lux_recent_sensor).publish_state("");
           id(lux_last_addr).publish_state("");
@@ -119,6 +121,7 @@ button:
     name: "Luxom: restart discovery"
 
 script:
+  # send a Luxom frame on the socket (appends the ';' terminator)
   - id: lux_send
     parameters:
       frame: string
@@ -131,6 +134,7 @@ script:
             close(id(lux_fd)); id(lux_fd) = -1;
           }
 
+  # handle one inbound Luxom frame: handshake, then log every activation address
   - id: lux_on_frame
     parameters:
       frame: string
@@ -171,6 +175,7 @@ script:
           }
 
 interval:
+  # TCP connection management to the DS65L + handshake fallback
   - interval: 1s
     then:
       - lambda: |-
@@ -221,6 +226,7 @@ interval:
             ESP_LOGI("luxom", "handshake fallback: sent *?");
           }
 
+  # socket read pump: accumulate chars and split on ';'
   - interval: 100ms
     then:
       - lambda: |-
