@@ -34,6 +34,8 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./luxom_proto.h.gcov
+          flags: unittests
           fail_ci_if_error: false
           verbose: true
 
