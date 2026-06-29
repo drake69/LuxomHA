@@ -47,7 +47,6 @@ You only ever edit **`secrets.yaml`**. Everything else is handled by the firmwar
 ## Quick start
 
 ```bash
-cd sw_artifacts
 cp secrets.yaml.example secrets.yaml      # then fill it in (see comments inside)
 
 # First flash over USB:
@@ -76,7 +75,7 @@ relays, up/down). So shutters are set up in two phases:
 luxom_covers: '"Kitchen|2,03|2,04 ; Bedroom|2,05|2,06"'
 ```
 
-See **`../documents/04_software_engineering/01_architecture.md`** for architecture,
+See **`docs/04_software_engineering/01_architecture.md`** for architecture,
 the protocol mapping, and limitations.
 
 ## Files
@@ -91,12 +90,12 @@ the protocol mapping, and limitations.
 | `flash_ota.sh` | Build/flash helper (USB or OTA) |
 | `test.sh` / `tests/` | Automated checks (unit tests + config/compile) |
 | `CONTRIBUTING.md` | Design choices & how to develop |
-| `../documents/06_knowledge_base/01_user_guide.md` | **User guide** (Home Assistant, no dev skills) |
-| `../documents/04_software_engineering/01_architecture.md` | Architecture, protocol mapping, limitations |
-| `../documents/04_software_engineering/02_luxom_protocol.md` | Luxom protocol knowledge base |
-| `../documents/04_software_engineering/03_design_decisions.md` | Design decisions & rationale |
-| `../documents/04_software_engineering/04_credits.md` | Attributions |
-| `../documents/04_software_engineering/references/` | Reference docs (ELAN note, ASCII-doc URLs, PlusConfig) |
+| `docs/06_knowledge_base/01_user_guide.md` | **User guide** (Home Assistant, no dev skills) |
+| `docs/04_software_engineering/01_architecture.md` | Architecture, protocol mapping, limitations |
+| `docs/04_software_engineering/02_luxom_protocol.md` | Luxom protocol knowledge base |
+| `docs/04_software_engineering/03_design_decisions.md` | Design decisions & rationale |
+| `docs/04_software_engineering/04_credits.md` | Attributions |
+| `docs/04_software_engineering/references/` | Reference docs (ELAN note, ASCII-doc URLs, PlusConfig) |
 
 ## Authorship & disclaimer
 
