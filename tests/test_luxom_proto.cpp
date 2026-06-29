@@ -22,6 +22,22 @@ static bool has(const std::string &hay, const std::string &needle) {
 int main() {
   using namespace luxom;
 
+  // ---- protocol constants (lock the values) ----
+  CHECK_EQ(frame::PW_REQUEST, "@1*PW-");
+  CHECK_EQ(frame::MODULE_INFO, "*!");
+  CHECK_EQ(frame::HEARTBEAT, "*U");
+  CHECK_EQ(frame::ACK, "@1*V");
+  CHECK_EQ(frame::IN_ON, "@1*S");
+  CHECK_EQ(frame::IN_OFF, "@1*C");
+  CHECK_EQ(frame::IN_DIM, "@1*A");
+  CHECK_EQ(frame::IN_LEVEL, "@1*Z");
+  CHECK_EQ(cmd::REQUEST_INFO, "*?");
+  CHECK_EQ(cmd::SET, "*S,0,");
+  CHECK_EQ(cmd::CLEAR, "*C,0,");
+  CHECK_EQ(cmd::PING, "*P,0,");
+  CHECK_EQ(cmd::DIM_PREAMBLE, "*A,0,");
+  CHECK_EQ(cmd::LEVEL, "*Z,0");
+
   // ---- sanitize / desanitize ----
   CHECK_EQ(sanitize("2,03"), "2_03");
   CHECK_EQ(sanitize("A,02"), "A_02");

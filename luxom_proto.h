@@ -12,6 +12,26 @@
 
 namespace luxom {
 
+// ---- Luxom protocol strings (named constants) -----------------------------
+namespace frame {   // inbound frames / opcodes (interface -> gateway)
+  inline const std::string PW_REQUEST = "@1*PW-";   // password request (reply with cmd::REQUEST_INFO)
+  inline const std::string MODULE_INFO = "*!";       // module-info prefix (match with rfind(.,0))
+  inline const std::string HEARTBEAT = "*U";         // application heartbeat (no-op)
+  inline const std::string ACK = "@1*V";             // acknowledge (no-op)
+  inline const std::string IN_ON = "@1*S";           // state ON
+  inline const std::string IN_OFF = "@1*C";          // state OFF
+  inline const std::string IN_DIM = "@1*A";          // dimmer preamble (address; @1*Z follows)
+  inline const std::string IN_LEVEL = "@1*Z";        // dimmer level byte
+}
+namespace cmd {     // outbound commands (gateway -> interface); append address/level
+  inline const std::string REQUEST_INFO = "*?";      // reply to frame::PW_REQUEST
+  inline const std::string SET = "*S,0,";            // set / on   -> append "<M,OO>"
+  inline const std::string CLEAR = "*C,0,";          // clear / off -> append "<M,OO>"
+  inline const std::string PING = "*P,0,";           // state query -> append "<M,OO>"
+  inline const std::string DIM_PREAMBLE = "*A,0,";   // dimmer data preamble -> append "<M,OO>"
+  inline const std::string LEVEL = "*Z,0";           // dimmer level -> append "<HEX>"
+}
+
 // ---- address <-> MQTT object id -------------------------------------------
 // "M,OO" -> "M_OO"  (a comma cannot appear in an MQTT topic)
 inline std::string sanitize(const std::string &addr) {

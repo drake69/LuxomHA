@@ -52,16 +52,16 @@ esphome:
               std::string base = "luxom/" + oid;
               if (kind == "d") {
                 int pct = on ? 100 : 0;
-                id(lux_send)->execute(pct == 0 ? std::string("*C,0,") + addr : std::string("*S,0,") + addr);
+                id(lux_send)->execute(pct == 0 ? luxom::cmd::CLEAR + addr : luxom::cmd::SET + addr);
                 if (pct > 0) {
-                  id(lux_send)->execute(std::string("*A,0,") + addr);
-                  id(lux_send)->execute(std::string("*Z,0") + luxom::pct_to_hex(pct));
+                  id(lux_send)->execute(luxom::cmd::DIM_PREAMBLE + addr);
+                  id(lux_send)->execute(luxom::cmd::LEVEL + luxom::pct_to_hex(pct));
                 }
                 id(mqtt_client).publish(base + "/bri", std::string(on ? "100" : "0"), 0, true);
                 id(mqtt_client).publish(base + "/state", std::string(on ? "ON" : "OFF"), 0, true);
               } else {
-                id(lux_send)->execute((on ? std::string("*S,0,") : std::string("*C,0,")) + addr);
-                id(lux_send)->execute(std::string("*P,0,") + addr);  // ping -> real state
+                id(lux_send)->execute((on ? luxom::cmd::SET : luxom::cmd::CLEAR) + addr);
+                id(lux_send)->execute(luxom::cmd::PING + addr);  // ping -> real state
                 id(mqtt_client).publish(base + "/state", std::string(on ? "ON" : "OFF"), 0, true);
               }
             });
@@ -72,10 +72,10 @@ esphome:
               std::string addr = luxom::desanitize(oid);
               ESP_LOGI("luxom", "MQTT< %s = %s", topic.c_str(), payload.c_str());
               int pct = atoi(payload.c_str()); if (pct < 0) pct = 0; if (pct > 100) pct = 100;
-              id(lux_send)->execute(pct == 0 ? std::string("*C,0,") + addr : std::string("*S,0,") + addr);
+              id(lux_send)->execute(pct == 0 ? luxom::cmd::CLEAR + addr : luxom::cmd::SET + addr);
               if (pct > 0) {
-                id(lux_send)->execute(std::string("*A,0,") + addr);
-                id(lux_send)->execute(std::string("*Z,0") + luxom::pct_to_hex(pct));
+                id(lux_send)->execute(luxom::cmd::DIM_PREAMBLE + addr);
+                id(lux_send)->execute(luxom::cmd::LEVEL + luxom::pct_to_hex(pct));
               }
               std::string base = "luxom/" + oid;
               id(mqtt_client).publish(base + "/bri", std::to_string(pct), 0, true);
@@ -88,14 +88,14 @@ esphome:
               if (!ud.ok) return;
               std::string up = ud.up, down = ud.down;
               if (payload == "OPEN") {
-                id(lux_send)->execute(std::string("*C,0,") + down);
-                id(lux_send)->execute(std::string("*S,0,") + up);
+                id(lux_send)->execute(luxom::cmd::CLEAR + down);
+                id(lux_send)->execute(luxom::cmd::SET + up);
               } else if (payload == "CLOSE") {
-                id(lux_send)->execute(std::string("*C,0,") + up);
-                id(lux_send)->execute(std::string("*S,0,") + down);
+                id(lux_send)->execute(luxom::cmd::CLEAR + up);
+                id(lux_send)->execute(luxom::cmd::SET + down);
               } else if (payload == "STOP") {
-                id(lux_send)->execute(std::string("*C,0,") + up);
-                id(lux_send)->execute(std::string("*C,0,") + down);
+                id(lux_send)->execute(luxom::cmd::CLEAR + up);
+                id(lux_send)->execute(luxom::cmd::CLEAR + down);
               }
             });
             ESP_LOGI("luxom", "subscribed to MQTT command topics");
@@ -368,18 +368,18 @@ script:
           if (f.empty()) return;
           ESP_LOGI("luxom", "BUS< %s", f.c_str());
 
-          if (f == "@1*PW-") { id(lux_send)->execute("*?"); ESP_LOGI("luxom", "handshake @1*PW- -> *?"); return; }
-          if (f.rfind("*!", 0) == 0) {
+          if (f == luxom::frame::PW_REQUEST) { id(lux_send)->execute(luxom::cmd::REQUEST_INFO); ESP_LOGI("luxom", "handshake @1*PW- -> *?"); return; }
+          if (f.rfind(luxom::frame::MODULE_INFO, 0) == 0) {
             id(lux_bus_ready) = true;
             ESP_LOGI("luxom", "module info -> bus ready");
             id(lux_republish)->execute();
             return;
           }
-          if (f == "*U" || f == "@1*V") return;  // heartbeat / ack
+          if (f == luxom::frame::HEARTBEAT || f == luxom::frame::ACK) return;  // heartbeat / ack
 
           luxom::Frame fr = luxom::parse_frame(f);
 
-          if (fr.op == "@1*Z") {  // dimmer level byte for the previous @1*A
+          if (fr.op == luxom::frame::IN_LEVEL) {  // dimmer level byte for the previous @1*A
             if (!id(lux_pending_dim).empty()) {
               int pct = luxom::hex_to_pct(f.substr(f.find(',') + 1));
               std::string addr = id(lux_pending_dim);
@@ -401,15 +401,15 @@ script:
           // address belonging to a shutter -> handled as a cover, no switch
           for (auto &ca : id(lux_cover_addrs)) if (ca == addr) return;
 
-          if (fr.op == "@1*A") { id(lux_pending_dim) = addr; return; }  // dimmer preamble
-          if (fr.op == "@1*S" || fr.op == "@1*C") {
+          if (fr.op == luxom::frame::IN_DIM) { id(lux_pending_dim) = addr; return; }  // dimmer preamble
+          if (fr.op == luxom::frame::IN_ON || fr.op == luxom::frame::IN_OFF) {
             bool known = false;
             for (auto &e : id(lux_known)) if (e.rfind(addr + "|", 0) == 0) { known = true; break; }
             if (!known) { id(lux_known).push_back(addr + "|s"); id(lux_emit_config)->execute(addr, "s"); }
             std::string oid = luxom::sanitize(addr);
             id(mqtt_client).publish(std::string("luxom/") + oid + "/state",
-                                    std::string(fr.op == "@1*S" ? "ON" : "OFF"), 0, true);
-            ESP_LOGI("luxom", "MQTT> luxom/%s state=%s", oid.c_str(), fr.op == "@1*S" ? "ON" : "OFF");
+                                    std::string(fr.op == luxom::frame::IN_ON ? "ON" : "OFF"), 0, true);
+            ESP_LOGI("luxom", "MQTT> luxom/%s state=%s", oid.c_str(), fr.op == luxom::frame::IN_ON ? "ON" : "OFF");
           }
 
 ########## intervals ##########
@@ -477,7 +477,7 @@ interval:
 
           // connected: if the interface does not send @1*PW- within 3s, prompt with *?
           if (!id(lux_bus_ready) && !id(lux_handshake_fallback) && (millis() - id(lux_conn_ms) > 3000)) {
-            id(lux_send)->execute("*?");
+            id(lux_send)->execute(luxom::cmd::REQUEST_INFO);
             id(lux_handshake_fallback) = true;
             ESP_LOGI("luxom", "handshake fallback: sent *?");
           }
@@ -525,7 +525,7 @@ interval:
             }
             std::string mod = id(disc_mods)[id(disc_mod_idx)];
             char ob[5]; snprintf(ob, sizeof(ob), "%02d", id(disc_out_idx) + 1);
-            id(lux_send)->execute(std::string("*P,0,") + mod + "," + ob);
+            id(lux_send)->execute(luxom::cmd::PING + mod + "," + ob);
             sent++;
             id(disc_out_idx)++;
             if (id(disc_out_idx) >= id(disc_out_max)) { id(disc_out_idx) = 0; id(disc_mod_idx)++; }
@@ -538,7 +538,7 @@ interval:
           if (!id(lux_bus_ready)) return;
           for (auto &e : id(lux_known)) {
             size_t bar = e.rfind('|'); if (bar == std::string::npos) continue;
-            id(lux_send)->execute(std::string("*P,0,") + e.substr(0, bar));
+            id(lux_send)->execute(luxom::cmd::PING + e.substr(0, bar));
           }
 
   # diagnostics

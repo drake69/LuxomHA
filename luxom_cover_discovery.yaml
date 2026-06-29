@@ -139,9 +139,9 @@ script:
           std::string f = frame;
           if (f.empty()) return;
           // handshake
-          if (f == "@1*PW-") { id(lux_send)->execute("*?"); ESP_LOGI("luxom", "handshake @1*PW- -> *?"); return; }
-          if (f.rfind("*!", 0) == 0) { id(lux_bus_ready) = true; ESP_LOGI("luxom", "module info -> bus ready. Press UP/DOWN on the shutters."); return; }
-          if (f == "*U" || f == "@1*V") return;
+          if (f == luxom::frame::PW_REQUEST) { id(lux_send)->execute(luxom::cmd::REQUEST_INFO); ESP_LOGI("luxom", "handshake @1*PW- -> *?"); return; }
+          if (f.rfind(luxom::frame::MODULE_INFO, 0) == 0) { id(lux_bus_ready) = true; ESP_LOGI("luxom", "module info -> bus ready. Press UP/DOWN on the shutters."); return; }
+          if (f == luxom::frame::HEARTBEAT || f == luxom::frame::ACK) return;
 
           // raw log of every frame
           ESP_LOGI("luxom", "frame: %s", f.c_str());
@@ -153,11 +153,11 @@ script:
           std::string addr = fr.addr;  // "M,OO"
 
           const char* tag = "?";
-          if (op == "@1*S") tag = "ON  (activation)";
-          else if (op == "@1*C") tag = "OFF (release)";
-          else if (op == "@1*A") tag = "DIMMER";
+          if (op == luxom::frame::IN_ON) tag = "ON  (activation)";
+          else if (op == luxom::frame::IN_OFF) tag = "OFF (release)";
+          else if (op == luxom::frame::IN_DIM) tag = "DIMMER";
 
-          if (op == "@1*S" || op == "@1*A") {
+          if (op == luxom::frame::IN_ON || op == luxom::frame::IN_DIM) {
             ESP_LOGI("luxom", ">>> ACTIVATION  address = %s   (%s)", addr.c_str(), op.c_str());
             id(lux_last_addr).publish_state(addr);
             // rolling list (keep the last ~10)
@@ -216,7 +216,7 @@ interval:
 
           id(lux_bus_connected).publish_state(true);
           if (!id(lux_bus_ready) && !id(lux_handshake_fallback) && (millis() - id(lux_conn_ms) > 3000)) {
-            id(lux_send)->execute("*?");
+            id(lux_send)->execute(luxom::cmd::REQUEST_INFO);
             id(lux_handshake_fallback) = true;
             ESP_LOGI("luxom", "handshake fallback: sent *?");
           }
