@@ -6,11 +6,11 @@
 <!-- Private repo: append ?token=<BADGE_TOKEN> to the codecov badge URL above
      (Codecov → repo → Settings → Badge) for it to render. -->
 
-> ⚠️ **Not yet tested on real hardware.** The firmware compiles and passes the
-> automated checks (host unit tests, ESPHome `config` + `compile`), but it has **not
-> yet been run against an actual Luxom DS65L and Home Assistant installation**.
-> Field testing is pending. **Volunteers with a Luxom setup are very welcome** to try
-> it and report results — open an issue or a PR.
+> ⚠️ **Proof of concept / early draft — not yet tested on real hardware.** The
+> firmware compiles and passes the automated checks (host unit tests, ESPHome
+> `config` + `compile`), but it has **not yet been run against an actual Luxom DS65L
+> and Home Assistant installation**. Field testing is pending. **Volunteers with a
+> Luxom setup are very welcome** to try it and report results — open an issue or a PR.
 
 An ESP32 firmware (built with **ESPHome**) that bridges a **Luxom** home-automation
 bus to **Home Assistant** over **MQTT**, with automatic entity discovery.
