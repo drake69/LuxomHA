@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LuxomHA — Luxom × Home Assistant, the open way</title>
+<meta name="description" content="An open ESP32 firmware that bridges a Luxom home-automation bus to Home Assistant over MQTT. Built in the open spirit of Home Assistant.">
+<style>
+  :root{
+    --bg:#0f1720; --panel:#162232; --fg:#e8eef5; --muted:#9fb0c3;
+    --accent:#41bdf5; --accent2:#18b69b; --border:#243447; --warn:#ffb454;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent)}
+  .wrap{max-width:820px;margin:0 auto;padding:0 20px}
+  header{padding:56px 0 24px;text-align:center}
+  h1{font-size:2.6rem;margin:.2em 0 .1em;letter-spacing:-.5px}
+  h1 .x{color:var(--accent)}
+  .tag{color:var(--muted);font-size:1.15rem;margin:0 auto;max-width:620px}
+  .langs{margin:22px 0 6px}
+  .langs button{background:var(--panel);color:var(--fg);border:1px solid var(--border);
+    border-radius:999px;padding:7px 16px;margin:0 4px;cursor:pointer;font-size:.95rem}
+  .langs button.active{background:var(--accent);color:#04121c;border-color:var(--accent);font-weight:600}
+  .cta{display:inline-block;margin:18px 8px 0;background:var(--accent);color:#04121c;
+    text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px}
+  .cta.alt{background:transparent;color:var(--fg);border:1px solid var(--border)}
+  section.lang{display:none}
+  section.lang.show{display:block}
+  h2{font-size:1.45rem;margin:2em 0 .4em;border-bottom:1px solid var(--border);padding-bottom:.3em}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin:14px 0}
+  .warn{border-color:var(--warn)}
+  .warn b{color:var(--warn)}
+  ul{padding-left:1.2em}
+  li{margin:.3em 0}
+  code{background:#0b121b;border:1px solid var(--border);border-radius:5px;padding:.05em .4em;font-size:.9em}
+  footer{color:var(--muted);text-align:center;padding:40px 0 60px;font-size:.92rem;border-top:1px solid var(--border);margin-top:40px}
+  .pill{display:inline-block;background:#0b121b;border:1px solid var(--border);border-radius:999px;
+    padding:3px 10px;margin:3px;color:var(--muted);font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Luxom<span class="x">HA</span></h1>
+    <p class="tag" id="tagline">Bring your <b>Luxom</b> home automation into <b>Home Assistant</b> — the open way. An ESP32 firmware that fits in a junction box and speaks MQTT.</p>
+    <div class="langs">
+      <button id="btn-en" class="active" onclick="setLang('en')">English</button>
+      <button id="btn-it" onclick="setLang('it')">Italiano</button>
+    </div>
+    <div>
+      <a class="cta" href="https://github.com/drake69/LuxomHA">View on GitHub</a>
+    </div>
+    <div>
+      <span class="pill">ESP32 · ESPHome</span>
+      <span class="pill">Luxom DS65L</span>
+      <span class="pill">MQTT</span>
+      <span class="pill">Home Assistant</span>
+      <span class="pill">Apache-2.0</span>
+    </div>
+  </header>
+
+  <!-- ===================== ENGLISH ===================== -->
+  <section class="lang show" id="en">
+
+    <h2>Why this project</h2>
+    <p>I designed and configured — with <b>PlusConfig</b> — two <b>Luxom BE</b> systems in two friends' houses far away: the first in <b>2008</b>, the second in <b>2017</b>. That experience left me with a conviction: <b>never depend on a closed system</b> — and that if I ever wanted home automation in my own home, it would have to be <b>open, like Home Assistant</b>.</p>
+    <p>When Home Assistant came along I fell in love instantly and built my home the open way: mine, under my control. <b>LuxomHA</b> is the next step — freeing a Luxom bus into Home Assistant, with no closed app in the middle.</p>
+
+    <h2>What it is</h2>
+    <p>A small <b>ESP32 firmware</b> (built with ESPHome) that fits inside a <b>junction box</b>. It acts as a TCP client to the Luxom <b>DS65L</b> IP interface and bridges the bus to Home Assistant over <b>MQTT</b>, publishing MQTT-discovery configs so entities appear in HA on their own.</p>
+
+    <h2>What you get in Home Assistant</h2>
+    <ul>
+      <li><b>Lights, outlets, dimmers</b> — discovered automatically (just use your wall switches, or press a "scan bus" button).</li>
+      <li><b>Shutters</b> — exposed as real <code>cover</code> entities (open / close / stop).</li>
+      <li><b>One edit surface</b> — you only fill in <code>secrets.yaml</code>; everything else is automatic.</li>
+      <li><b>Verbose logging</b> of every bus and MQTT interaction, visible from the ESPHome log.</li>
+    </ul>
+
+    <div class="card warn">
+      <p><b>⚠️ Not field-tested yet.</b> The firmware compiles and passes the automated checks (host unit tests, ESPHome <code>config</code> + <code>compile</code>, CI), but it has not yet run against a real Luxom DS65L. The first real-world test is a few weeks away.</p>
+    </div>
+
+    <h2>Get involved</h2>
+    <p><b>Got a Luxom system and want to try it?</b> Or a <b>C++ / ESPHome</b> developer who'd like to contribute? You're very welcome — feedback, field tests and pull requests are appreciated. Adding not-yet-integrated Luxom device types is especially welcome.</p>
+    <p><a class="cta alt" href="https://github.com/drake69/LuxomHA">Repo &amp; docs on GitHub →</a></p>
+
+  </section>
+
+  <!-- ===================== ITALIANO ===================== -->
+  <section class="lang" id="it">
+
+    <h2>Perché questo progetto</h2>
+    <p>Ho progettato e configurato — con <b>PlusConfig</b> — due impianti <b>Luxom BE</b> in due case di amici lontani: il primo nel <b>2008</b>, il secondo nel <b>2017</b>. Quell'esperienza mi ha lasciato una convinzione: <b>non voler dipendere da un sistema chiuso</b> — e che, se mai avessi voluto la domotica a casa mia, sarebbe dovuta essere <b>aperta, come Home Assistant</b>.</p>
+    <p>Quando è nato Home Assistant me ne sono innamorato all'istante e ho realizzato la domotica di casa nel modo più libero possibile: mia, sotto il mio controllo. <b>LuxomHA</b> è il passo successivo — liberare un bus Luxom dentro Home Assistant, senza nessuna app chiusa in mezzo.</p>
+
+    <h2>Cos'è</h2>
+    <p>Un piccolo <b>firmware ESP32</b> (realizzato con ESPHome) che sta in una <b>cassetta di derivazione</b>. Fa da client TCP verso l'interfaccia IP <b>DS65L</b> di Luxom e collega il bus a Home Assistant via <b>MQTT</b>, pubblicando le config di MQTT-discovery così le entità compaiono in HA da sole.</p>
+
+    <h2>Cosa ottieni in Home Assistant</h2>
+    <ul>
+      <li><b>Luci, prese, dimmer</b> — scoperti automaticamente (basta usare gli interruttori, o premere il pulsante "scansiona bus").</li>
+      <li><b>Tapparelle</b> — esposte come vere entità <code>cover</code> (apri / chiudi / stop).</li>
+      <li><b>Un'unica cosa da editare</b> — compili solo <code>secrets.yaml</code>; il resto è automatico.</li>
+      <li><b>Log verboso</b> di ogni interazione bus e MQTT, visibile dal log di ESPHome.</li>
+    </ul>
+
+    <div class="card warn">
+      <p><b>⚠️ Non ancora testato sul campo.</b> Il firmware compila e supera i controlli automatici (unit test host, ESPHome <code>config</code> + <code>compile</code>, CI), ma non è ancora stato provato su un vero DS65L Luxom. Il primo test nel mondo reale è tra qualche settimana.</p>
+    </div>
+
+    <h2>Vuoi partecipare?</h2>
+    <p><b>Hai un impianto Luxom e lo vuoi provare?</b> O sei uno sviluppatore <b>C++ / ESPHome</b> e vuoi contribuire? Sei il benvenuto — feedback, test sul campo e pull request sono graditi. Aggiungere tipi di dispositivo Luxom non ancora integrati è particolarmente benvenuto.</p>
+    <p><a class="cta alt" href="https://github.com/drake69/LuxomHA">Repo e documentazione su GitHub →</a></p>
+
+  </section>
+
+  <footer>
+    <p>Licensed under the <b>Apache License 2.0</b> · Copyright 2026 Luigi Corsaro</p>
+    <p>The C++ / ESPHome implementation was written by <b>Claude</b> (Anthropic's AI); the engineering, functional, operational and design requirements are the project owner's.</p>
+    <p><a href="https://github.com/drake69/LuxomHA">github.com/drake69/LuxomHA</a></p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(l){
+    document.getElementById('en').classList.toggle('show', l==='en');
+    document.getElementById('it').classList.toggle('show', l==='it');
+    document.getElementById('btn-en').classList.toggle('active', l==='en');
+    document.getElementById('btn-it').classList.toggle('active', l==='it');
+    document.documentElement.lang = l;
+    try{ localStorage.setItem('luxomha_lang', l); }catch(e){}
+  }
+  (function(){
+    var saved;
+    try{ saved = localStorage.getItem('luxomha_lang'); }catch(e){}
+    var nav = (navigator.language||'en').slice(0,2);
+    setLang(saved || (nav==='it' ? 'it' : 'en'));
+  })();
+</script>
+</body>
+</html>
