@@ -1,0 +1,30 @@
+# Codecov configuration for LuxomHA.
+# Coverage is measured on the pure protocol logic (luxom_proto.h) via the host
+# unit tests; the test sources themselves are excluded so the number reflects
+# only the code that ships in the firmware. See .github/workflows/ci.yml.
+
+coverage:
+  # Informational only: Codecov posts the status checks but never reds a PR
+  # (matches the non-blocking coverage job: continue-on-error / fail_ci_if_error: false).
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+# Post a comment on every PR with the coverage diff.
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default
+  require_changes: false
+
+flags:
+  unittests:
+    paths:
+      - luxom_proto.h
+
+# The host unit tests drive coverage but are not shipped code.
+ignore:
+  - "tests/**"
