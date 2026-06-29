@@ -108,6 +108,13 @@ CI (`.github/workflows/ci.yml`) runs all three on every push/PR: `unit` → `val
 → `compile` (the last with a PlatformIO cache). It runs on GitHub once the repo is
 pushed to a GitHub remote.
 
+## Branching & PRs
+
+- **No direct commits to `main`.** Every change goes on a **feature branch** and is
+  merged via a **pull request** (`gh pr create` → review → merge).
+- Branch names: `feat/…`, `fix/…`, `docs/…`, `ci/…`, `refactor/…`.
+- CI (`unit` → `validate` → `compile`) must be **green** before merge.
+
 ## Conventions for PRs
 
 - Add/extend host unit tests for any change to `luxom_proto.h`.
