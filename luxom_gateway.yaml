@@ -19,7 +19,7 @@
 #  >>> YOU ONLY EDIT  secrets.yaml  <<<  (do not touch this file)
 #  Entities arrive in HA via MQTT discovery (retained): rename them there.
 #
-#  Protocol reference: see ../documents/04_software_engineering/02_luxom_protocol.md
+#  Protocol reference: see docs/04_software_engineering/02_luxom_protocol.md
 # =============================================================================
 
 esphome:
