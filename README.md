@@ -47,7 +47,6 @@ You only ever edit **`secrets.yaml`**. Everything else is handled by the firmwar
 ## Quick start
 
 ```bash
-cd sw_artifacts
 cp secrets.yaml.example secrets.yaml      # then fill it in (see comments inside)
 
 # First flash over USB:

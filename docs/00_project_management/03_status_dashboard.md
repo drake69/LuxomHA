@@ -4,7 +4,7 @@ Snapshot of where the project stands. Legend: ✅ done · 🟡 partial / to veri
 
 | Area | Status | Notes |
 |---|---|---|
-| Project scaffolding (ESPHome, uv, OTA, secrets) | ✅ | `sw_artifacts/` complete |
+| Project scaffolding (ESPHome, uv, OTA, secrets) | ✅ | complete |
 | Production gateway `luxom_gateway.yaml` | ✅ | written; **not yet flashed/tested on hardware** |
 | Shutter discovery `luxom_cover_discovery.yaml` | ✅ | written; not yet run on hardware |
 | Lights/outlets/dimmers discovery (sniffing + `*P` scan) | ✅ | implemented |

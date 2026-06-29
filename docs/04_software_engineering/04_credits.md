@@ -38,12 +38,6 @@ owner's own **initial draft** of the idea — the seed this ESPHome firmware gre
 from. It served as the functional reference for the protocol handling and is now
 superseded by the ESPHome configuration.
 
-## Project layout / conventions
-
-Project structure and ESPHome packaging conventions (uv-managed ESPHome,
-`secrets.yaml`, OTA flashing) follow the sibling project **NoPowerWasted2500**;
-documentation hierarchy follows `PROJECT_BLUEPRINT` / `PRODUCT_BLUEPRINT`.
-
 ## Authorship
 
 The C++ / ESPHome implementation was written entirely by **Claude** (Anthropic's AI
@@ -54,4 +48,4 @@ testing and operation. See the README "Authorship & disclaimer" section.
 ## License
 
 Licensed under the **Apache License 2.0**. Copyright 2026 Luigi Corsaro. See the
-`LICENSE` and `NOTICE` files in the code repository (`sw_artifacts/`).
+`LICENSE` and `NOTICE` files in the repository root.
