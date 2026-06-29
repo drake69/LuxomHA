@@ -33,9 +33,10 @@ the authoritative source of the device list. See `references/00_references.md`.
 
 ## Reference implementation
 
-An earlier standalone Arduino sketch (`luxom_mqtt_gateway.ino`) served as the
-functional reference for the protocol handling. It is kept as a local archive (not
-part of this repository) and is superseded by the ESPHome configuration.
+An earlier standalone Arduino sketch (`luxom_mqtt_gateway.ino`) was the project
+owner's own **initial draft** of the idea — the seed this ESPHome firmware grew
+from. It served as the functional reference for the protocol handling and is now
+superseded by the ESPHome configuration.
 
 ## Project layout / conventions
 
